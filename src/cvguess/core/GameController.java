@@ -37,6 +37,9 @@ public class GameController {
     private int timeLeft = 30;
     private int wrongTries = 0;
 
+    private boolean gameWon = false;
+    private final java.util.List<String> imageQueue = new java.util.ArrayList<>();
+
     private ImageRepository.ImageItem current;
 
     // Parametreler (zorluk)
@@ -60,9 +63,16 @@ public class GameController {
         this.category = category;
         this.timeLeft = 60; // 30 -> 60 saniye
         this.wrongTries = 0;
+        this.gameWon = false;
+
+        // Initialize and shuffle queue
+        imageQueue.clear();
+        imageQueue.addAll(repo.listImageNames(category));
+        java.util.Collections.shuffle(imageQueue);
+
         nextImage();
 
-        if (current == null) {
+        if (current == null && !gameWon) {
             throw new RuntimeException("Görsel yüklenemedi! Lütfen 'images' klasörünü kontrol edin.");
         }
     }
@@ -74,7 +84,11 @@ public class GameController {
     }
 
     public boolean isGameOver() {
-        return timeLeft <= 0;
+        return timeLeft <= 0 || gameWon;
+    }
+
+    public boolean isGameWon() {
+        return gameWon;
     }
 
     public void tickOneSecond() {
@@ -82,10 +96,12 @@ public class GameController {
     }
 
     public enum GuessResult {
-        CORRECT, WRONG, GAME_OVER
+        CORRECT, WRONG, GAME_OVER, GAME_WON
     }
 
     public GuessResult submitGuess(String guessRaw) {
+        if (gameWon)
+            return GuessResult.GAME_WON;
         if (current == null)
             return GuessResult.GAME_OVER;
         if (timeLeft <= 0)
@@ -101,6 +117,10 @@ public class GameController {
             timeLeft += 3;
             wrongTries = 0;
             nextImage();
+
+            if (gameWon)
+                return GuessResult.GAME_WON;
+
             return GuessResult.CORRECT;
         } else {
             timeLeft -= 2;
@@ -123,14 +143,20 @@ public class GameController {
     }
 
     private void nextImage() {
-        for (int i = 0; i < 10; i++) {
-            current = repo.randomItem(category);
-            if (current != null)
-                return;
-            System.out.println("Failed to load image, retrying... (" + (i + 1) + "/10)");
+        if (imageQueue.isEmpty()) {
+            gameWon = true;
+            current = null;
+            return;
         }
-        System.err.println("CRITICAL: Could not load any image after 10 tries!");
-        // current remains null, but we should probably handle this in UI
+
+        String nextName = imageQueue.remove(0);
+        current = repo.loadImage(category, nextName);
+
+        if (current == null) {
+            // If load fails, try next
+            System.err.println("Failed to load image: " + nextName + ", picking next...");
+            nextImage();
+        }
     }
 
     private BufferedImage buildShownImage() {

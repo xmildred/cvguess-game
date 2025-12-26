@@ -149,6 +149,9 @@ public class GamePanel extends JPanel {
         } else if (r == GameController.GuessResult.WRONG) {
             hintLabel.setForeground(StyleUtils.ACCENT_RED);
             hintLabel.setText("WRONG! 🧊 -2s (Melting...)");
+        } else if (r == GameController.GuessResult.GAME_WON) {
+            winGame();
+            return;
         } else {
             endGame();
             return;
@@ -204,6 +207,23 @@ public class GamePanel extends JPanel {
                 "Game Over",
                 JOptionPane.INFORMATION_MESSAGE,
                 icon);
+
+        backCallback.run();
+    }
+
+    private void winGame() {
+        if (timer != null)
+            timer.stop();
+        controller.finalizeAndSave();
+
+        JOptionPane.showMessageDialog(this,
+                "🎉 TEBRİKLER! 🎉\n" +
+                        "Tüm görselleri bildiniz!\n" +
+                        "Oyuncu: " + controller.getPlayer().getName() + "\n" +
+                        "Puan: " + controller.getPlayer().getCorrectCount() + "\n" +
+                        "Kalan Süre: " + controller.getTimeLeft() + "s",
+                "KAZANDINIZ!",
+                JOptionPane.INFORMATION_MESSAGE);
 
         backCallback.run();
     }

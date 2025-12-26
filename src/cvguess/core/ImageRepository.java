@@ -11,7 +11,7 @@ public class ImageRepository {
 
     public static class ImageItem {
         public final BufferedImage image;
-        public final String answer;  // normalize edilmiş cevap
+        public final String answer; // normalize edilmiş cevap
         public final String rawName; // dosya adı
 
         public ImageItem(BufferedImage image, String answer, String rawName) {
@@ -28,51 +28,57 @@ public class ImageRepository {
         this.imagesRoot = imagesRoot;
     }
 
-    public ImageItem randomItem(Category category) {
+    public List<String> listImageNames(Category category) {
         File folder = new File(imagesRoot, category.folderName);
-        System.out.println("Looking for images in: " + folder.getAbsolutePath());
-        
-        File[] files = folder.listFiles((dir, name) ->
-                name.toLowerCase().endsWith(".png") ||
+        System.out.println("Listing images in: " + folder.getAbsolutePath());
+
+        File[] files = folder.listFiles((dir, name) -> name.toLowerCase().endsWith(".png") ||
                 name.toLowerCase().endsWith(".jpg") ||
                 name.toLowerCase().endsWith(".jpeg"));
 
-        if (files == null || files.length == 0) {
-            System.out.println("No images found in " + folder.getAbsolutePath());
+        List<String> names = new ArrayList<>();
+        if (files != null) {
+            for (File f : files) {
+                names.add(f.getName());
+            }
+        }
+        return names;
+    }
+
+    public ImageItem loadImage(Category category, String filename) {
+        File folder = new File(imagesRoot, category.folderName);
+        File file = new File(folder, filename);
+
+        if (!file.exists() || !file.canRead()) {
+            System.err.println("Cannot read file: " + file.getAbsolutePath());
             return null;
         }
 
-        System.out.println("Found " + files.length + " images in " + category.folderName);
-
-
-        // Basit random seç
-        File chosen = files[rnd.nextInt(files.length)];
-        System.out.println("Selected file: " + chosen.getAbsolutePath());
-        System.out.println("File exists: " + chosen.exists() + ", Can read: " + chosen.canRead() + ", Size: " + chosen.length());
-
         try {
-            BufferedImage img = ImageIO.read(chosen);
-            if (img == null) {
-                System.out.println("ImageIO.read returned NULL for: " + chosen.getAbsolutePath());
+            BufferedImage img = ImageIO.read(file);
+            if (img == null)
                 return null;
-            }
-            System.out.println("Image loaded successfully: " + img.getWidth() + "x" + img.getHeight());
 
-            String base = chosen.getName();
+            String base = file.getName();
             int dot = base.lastIndexOf('.');
-            if (dot > 0) base = base.substring(0, dot);
+            if (dot > 0)
+                base = base.substring(0, dot);
 
-            // Cevap: dosya adının ilk parçası (underscore/dash kırp)
             String answer = normalizeAnswer(base);
-            System.out.println("Answer for this image: " + answer);
-
-            return new ImageItem(img, answer, chosen.getName());
+            return new ImageItem(img, answer, file.getName());
         } catch (Exception e) {
-            System.out.println("Exception loading image: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
+    }
 
+    public ImageItem randomItem(Category category) {
+        // Deprecated adapter
+        List<String> all = listImageNames(category);
+        if (all.isEmpty())
+            return null;
+        String randomName = all.get(rnd.nextInt(all.size()));
+        return loadImage(category, randomName);
     }
 
     public static String normalizeAnswer(String s) {
