@@ -1,10 +1,10 @@
 package cvguess.model;
 
 public enum Difficulty {
-    EASY("Easy (Pixelation)"),
-    MEDIUM("Medium (Gaussian Blur)"),
-    HARD("Hard (Thresholding)"),
-    EXTREME("Extreme (Edge Detection)");
+    EASY("Easy (Edge Detection)"),
+    MEDIUM("Medium (Thresholding)"),
+    HARD("Hard (Gaussian Blur)"),
+    EXTREME("Extreme (Pixelation)");
 
     public final String displayName;
 

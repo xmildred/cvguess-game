@@ -9,12 +9,14 @@ public class Leaderboard {
     public static class Entry {
         public final String name;
         public final int correct;
-        public final int timeLeft;
+        public final String difficulty;
+        public final String category;
 
-        public Entry(String name, int correct, int timeLeft) {
+        public Entry(String name, int correct, String difficulty, String category) {
             this.name = name;
             this.correct = correct;
-            this.timeLeft = timeLeft;
+            this.difficulty = difficulty;
+            this.category = category;
         }
     }
 
@@ -24,16 +26,16 @@ public class Leaderboard {
         this.filePath = Paths.get(System.getProperty("user.home"), "leaderboard.csv");
     }
 
-    public synchronized void add(String name, int correct, int timeLeft) {
+    public synchronized void add(String name, int correct, String difficulty, String category) {
         try {
             boolean exists = Files.exists(filePath);
             try (BufferedWriter bw = Files.newBufferedWriter(filePath, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
                 if (!exists) {
-                    bw.write("name,correct,timeLeft");
+                    bw.write("name,correct,difficulty,category");
                     bw.newLine();
                 }
-                bw.write(escape(name) + "," + correct + "," + timeLeft);
+                bw.write(escape(name) + "," + correct + "," + escape(difficulty) + "," + escape(category));
                 bw.newLine();
             }
         } catch (IOException e) {
@@ -43,37 +45,71 @@ public class Leaderboard {
 
     public synchronized List<Entry> loadAllSorted() {
         List<Entry> list = new ArrayList<>();
-        if (!Files.exists(filePath)) return list;
+        if (!Files.exists(filePath))
+            return list;
 
         try (BufferedReader br = Files.newBufferedReader(filePath, StandardCharsets.UTF_8)) {
             String line = br.readLine(); // header
+
             while ((line = br.readLine()) != null) {
                 String[] parts = splitCsv(line);
-                if (parts.length < 3) continue;
+                if (parts.length < 2)
+                    continue;
+
                 String name = unescape(parts[0]);
                 int correct = parseIntSafe(parts[1]);
-                int time = parseIntSafe(parts[2]);
-                list.add(new Entry(name, correct, time));
+                String diff = "-";
+                String cat = "-";
+
+                if (parts.length >= 3) {
+                    String p3 = unescape(parts[2]);
+                    // Check if it looks like the old TimeLeft (integer)
+                    if (isInteger(p3)) {
+                        // It is likely old legacy data (TimeLeft)
+                        // We can mark difficulty as Unknown or "-"
+                        diff = "-";
+                    } else {
+                        // It is likely the new Difficulty string
+                        diff = p3;
+                    }
+                }
+
+                if (parts.length >= 4) {
+                    cat = unescape(parts[3]);
+                }
+
+                list.add(new Entry(name, correct, diff, cat));
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        // Skor: önce doğru sayısı, sonra kalan zaman
-        list.sort((a, b) -> {
-            int c = Integer.compare(b.correct, a.correct);
-            if (c != 0) return c;
-            return Integer.compare(b.timeLeft, a.timeLeft);
-        });
+        // Score: sort by correct count descending
+        list.sort((a, b) -> Integer.compare(b.correct, a.correct));
         return list;
     }
 
     private int parseIntSafe(String s) {
-        try { return Integer.parseInt(s.trim()); } catch (Exception e) { return 0; }
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
-    // Basit CSV kaçış
+    private boolean isInteger(String s) {
+        try {
+            Integer.parseInt(s.trim());
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    // Simple CSV escape
     private String escape(String s) {
+        if (s == null)
+            return "";
         if (s.contains(",") || s.contains("\"")) {
             return "\"" + s.replace("\"", "\"\"") + "\"";
         }
@@ -94,9 +130,10 @@ public class Leaderboard {
         boolean inQuotes = false;
         for (int i = 0; i < line.length(); i++) {
             char ch = line.charAt(i);
-            if (ch == '"' ) {
+            if (ch == '"') {
                 if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
-                    cur.append('"'); i++;
+                    cur.append('"');
+                    i++;
                 } else {
                     inQuotes = !inQuotes;
                 }

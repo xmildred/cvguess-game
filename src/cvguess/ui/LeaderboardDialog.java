@@ -12,11 +12,11 @@ public class LeaderboardDialog extends JDialog {
 
     public LeaderboardDialog(JFrame owner, Leaderboard leaderboard) {
         super(owner, "Leaderboard", true);
-        setSize(520, 360);
+        setSize(600, 360);
         setLocationRelativeTo(owner);
         getContentPane().setBackground(StyleUtils.BG_DARK);
 
-        String[] cols = { "#", "Name", "Correct", "TimeLeft" };
+        String[] cols = { "#", "Name", "Correct", "Difficulty", "Category" };
         DefaultTableModel model = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -27,7 +27,7 @@ public class LeaderboardDialog extends JDialog {
         List<Leaderboard.Entry> entries = leaderboard.loadAllSorted();
         int rank = 1;
         for (Leaderboard.Entry e : entries) {
-            model.addRow(new Object[] { rank++, e.name, e.correct, e.timeLeft });
+            model.addRow(new Object[] { rank++, e.name, e.correct, e.difficulty, e.category });
         }
 
         JTable table = new JTable(model);

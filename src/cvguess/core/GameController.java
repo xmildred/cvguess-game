@@ -175,20 +175,20 @@ public class GameController {
 
         switch (difficulty) {
             case EASY:
-                return generateEasyMode(base);
+                return generateEdgeEffect(base);
             case MEDIUM:
-                return generateMediumMode(base);
+                return generateThresholdEffect(base);
             case HARD:
-                return generateHardMode(base);
+                return generateBlurEffect(base);
             case EXTREME:
-                return generateExtremeMode(base);
+                return generatePixelationEffect(base);
             default:
-                return generateEasyMode(base);
+                return generateEdgeEffect(base);
         }
     }
 
-    // Easy: Pixelation (Existing logic)
-    private BufferedImage generateEasyMode(BufferedImage base) {
+    // Effect: Pixelation (Now EXTREME)
+    private BufferedImage generatePixelationEffect(BufferedImage base) {
         boolean twoBlocks = (wrongTries == 0);
         int gridN = Math.min(20, 2 + wrongTries * 2);
         int pixelFactor = Math.max(1, 12 - wrongTries * 4);
@@ -198,9 +198,8 @@ public class GameController {
         return generator.generate(quant, gridN, twoBlocks, pixelFactor);
     }
 
-    // Medium: Gaussian Blur
-    // Start: High Radius (e.g. 40) -> End: 0 (Sharp)
-    private BufferedImage generateMediumMode(BufferedImage base) {
+    // Effect: Gaussian Blur (Now HARD)
+    private BufferedImage generateBlurEffect(BufferedImage base) {
         int maxRadius = 40;
         int decreaseStep = 5;
 
@@ -211,59 +210,22 @@ public class GameController {
         return processor.applyBlur(base, radius);
     }
 
-    // Hard: Thresholding
-    // Start: High Contrast / Silhouette -> End: More gray/color
-    // Actually strategy: Start with binary threshold, then slowly mix with real
-    // image?
-    // Or just lower/raise the threshold to reveal more?
-    // Let's try: "Start as binary black/white, then add grays, then color"
-    // Stage 1 (0-2 wrong): Binary Threshold (Silhouette)
-    // Stage 2 (3-5 wrong): Grayscale (Quantized)
-    // Stage 3 (6+ wrong): Color (Quantized -> Full)
-    private BufferedImage generateHardMode(BufferedImage base) {
+    // Effect: Thresholding (Now MEDIUM)
+    private BufferedImage generateThresholdEffect(BufferedImage base) {
         if (wrongTries < 3) {
-            // Binary Threshold - changing threshold level might be hint?
-            // Maybe fixed threshold: 128
             return processor.applyThreshold(base, 128);
         } else if (wrongTries < 6) {
-            // Grayscale (using 0 saturation trick or just standard gray conversion if we
-            // had it)
-            // Let's use quantizeColors with very low levels on grayscale input?
-            // For now, let's just reuse applyThreshold but with varied thresholds to show
-            // it's 'hard'
-            // Actually, let's implement a simple "Grayscale" fallback by just returning
-            // a heavily quantized color version, which matches "Hard" progression.
-            // OR: simulate "revealing" by mixing.
-            // Let's stick to user request: "Thresholding".
-            // Maybe we reveal by changing threshold?
-            // T=200 (mostly black), T=150, T=100...
-            // Let's go with: Start T=50, End T=200? No that changes what is visible.
-
-            // Strategy: Mix Threshold result with Original.
-            // But we don't have mix function.
-            // Let's fallback to: Color Quantization 2 levels (Binary-ish) -> 4 levels -> 8
-            // levels
             return processor.quantizeColors(base, 2 + (wrongTries - 3) * 2);
         } else {
-            // Near full color
             return processor.quantizeColors(base, 8 + (wrongTries - 6) * 8);
         }
     }
 
-    // Extreme: Edge Detection
-    // Start: Only Edges -> End: Mix with real image
-    // Since we can't easily Mix without a new method, let's toggle?
-    // Or: "Extreme" means it STAYS as Edge Detection for a long time.
-    // Let's say: Always Edge Detection, but maybe we quantize valid colors "under"
-    // it?
-    // Simpler: Just return Edge Detection until very late stage?
-    // The user said: "extreme ise edge detection ile olsun".
-    // Let's enable "revealing" by checking wrongTries.
-    private BufferedImage generateExtremeMode(BufferedImage base) {
+    // Effect: Edge Detection (Now EASY)
+    private BufferedImage generateEdgeEffect(BufferedImage base) {
         if (wrongTries < 8) {
             return processor.applyEdgeDetection(base);
         } else {
-            // Give up, show blurry real image
             return processor.applyBlur(base, 10 - (wrongTries - 8));
         }
     }
@@ -272,7 +234,8 @@ public class GameController {
         if (player == null)
             return;
         player.setFinalTimeSeconds(Math.max(0, timeLeft));
-        leaderboard.add(player.getName(), player.getCorrectCount(), player.getFinalTimeSeconds());
+        // Leaderboard now takes difficulty and category (Restored per user request)
+        leaderboard.add(player.getName(), player.getCorrectCount(), difficulty.name(), category.displayName);
     }
 
     public Player getPlayer() {
